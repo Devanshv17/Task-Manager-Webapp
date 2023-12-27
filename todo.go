@@ -10,6 +10,19 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+func validateToken(c *gin.Context) {
+	tokenString := c.GetHeader("Authorization")
+	token, err := jwt.Parse(tokenString, nil)
+	if err != nil || !token.Valid {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+		c.Abort()
+		return
+	}
+
+	// Proceed to the next middleware or route handler
+	c.Next()
+}
+
 // TodoItem struct to represent a todo list item
 type TodoItem struct {
 	ID          primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
@@ -91,6 +104,13 @@ func updateTodoHandler(c *gin.Context) {
 	// Parse todo item ID from request parameters
 	todoID := c.Param("id")
 
+	// Convert todoID string to primitive.ObjectID
+	objectID, err := primitive.ObjectIDFromHex(todoID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid todo ID"})
+		return
+	}
+
 	var updatedTodo TodoItem
 	if err := c.ShouldBindJSON(&updatedTodo); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -98,10 +118,10 @@ func updateTodoHandler(c *gin.Context) {
 	}
 
 	// Update the todo item in the database
-	filter := bson.M{"_id": bson.ObjectIdHex(todoID), "userID": userID}
+	filter := bson.M{"_id": objectID, "userID": userID}
 	update := bson.M{"$set": updatedTodo}
 
-	_, err := todoCollection.UpdateOne(context.TODO(), filter, update)
+	_, err = todoCollection.UpdateOne(context.TODO(), filter, update)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
@@ -120,8 +140,15 @@ func deleteTodoHandler(c *gin.Context) {
 	// Parse todo item ID from request parameters
 	todoID := c.Param("id")
 
+	// Convert todoID string to primitive.ObjectID
+	objectID, err := primitive.ObjectIDFromHex(todoID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid todo ID"})
+		return
+	}
+
 	// Delete the todo item from the database
-	_, err := todoCollection.DeleteOne(context.TODO(), bson.M{"_id": bson.ObjectIdHex(todoID), "userID": userID})
+	_, err = todoCollection.DeleteOne(context.TODO(), bson.M{"_id": objectID, "userID": userID})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return

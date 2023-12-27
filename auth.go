@@ -11,6 +11,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+var jwtSecret = []byte("your-secret-key")
+
 // User struct to represent a user in the system
 type User struct {
 	Username string `json:"username" binding:"required"`
